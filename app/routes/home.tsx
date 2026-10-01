@@ -35,18 +35,17 @@ function normalizarTexto(texto: string) {
     .trim();
 }
 
-function buscarLivrosPorTitulo(titulo: string): Livro[] {
-  const termos = normalizarTexto(titulo)
+function buscarLivros(termoBusca: string): Livro[] {
+  const termos = normalizarTexto(termoBusca)
     .split(/\s+/)
     .filter(Boolean);
 
   if (termos.length === 0) return [];
 
-  // A busca considera qualquer parte do título. Cada palavra digitada
-  // precisa aparecer no título, sem usar o autor como critério.
   return DESTAQUES.filter((livro) => {
-    const tituloNormalizado = normalizarTexto(livro.titulo);
-    return termos.every((termo) => tituloNormalizado.includes(termo));
+    const alvoBusca = normalizarTexto(`${livro.titulo} ${livro.autor}`);
+    // Garante que cada palavra digitada esteja presente no título OU no autor
+    return termos.every((termo) => alvoBusca.includes(termo));
   });
 }
 
@@ -136,8 +135,8 @@ function Topbar({
             type="search"
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
-            placeholder="Buscar livro pelo título..."
-            aria-label="Buscar livro pelo título"
+            placeholder="Buscar por título ou autor..."
+            aria-label="Buscar por título ou autor"
             autoComplete="off"
             className="w-full bg-transparent text-sm text-white placeholder:text-[#6F819B] outline-none"
           />
@@ -182,7 +181,7 @@ function Topbar({
               </div>
             ) : (
               <p className="px-4 py-4 text-sm text-[#8A9AB1]">
-                Nenhum livro encontrado com esse título.
+                Nenhum livro encontrado com esse título ou autor.
               </p>
             )}
           </div>
@@ -268,13 +267,13 @@ export default function Home() {
     setErroBusca("");
 
     // O Enter/Buscar pesquisa pelo título e aceita correspondências parciais.
-    const livros = buscarLivrosPorTitulo(titulo);
+    const livros = buscarLivros(titulo);
     setResultados(livros);
     setPesquisaEnviada(true);
     setPesquisando(false);
   }
 
-  const sugestoes = busca.trim() ? buscarLivrosPorTitulo(busca) : [];
+  const sugestoes = busca.trim() ? buscarLivros(busca) : [];
 
   return (
     <div className="flex min-h-screen bg-[#08121F] text-white">
@@ -301,7 +300,7 @@ export default function Home() {
                   Resultados para "{busca.trim()}"
                 </h2>
                 <p className="text-xs text-[#8A9AB1]">
-                  Pesquisa realizada somente pelo título dos livros disponíveis
+                  Pesquisa realizada por título ou autor dos livros disponíveis
                 </p>
               </div>
 
@@ -319,7 +318,7 @@ export default function Home() {
 
               {!pesquisando && !erroBusca && resultados.length === 0 && (
                 <div className="rounded-xl border border-[#1A2B45] bg-[#0F1E33] p-6 text-sm text-[#A9B6C9]">
-                  Nenhum livro encontrado com esse título.
+                  Nenhum livro encontrado para este título ou autor.
                 </div>
               )}
 
