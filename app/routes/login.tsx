@@ -1,4 +1,5 @@
 import type { Route } from "./+types/login";
+import { Link } from "react-router";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -103,12 +104,12 @@ export default function Login() {
           {/* Cadastro */}
           <p className="mt-6 text-center text-sm text-slate-400">
             Não tem uma conta?{" "}
-            <a
-              href="#"
+            <Link
+              to="/cadastro"
               className="font-medium text-blue-500 hover:text-blue-400"
             >
               Cadastre-se
-            </a>
+            </Link>
           </p>
 
           {/* Frase */}
