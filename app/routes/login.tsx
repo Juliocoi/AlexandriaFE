@@ -1,5 +1,11 @@
 import type { Route } from "./+types/login";
-import { Link } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
+import { useState, useEffect, type FormEvent } from "react";
+import {
+  findUserByCredentials,
+  getCurrentUser,
+  setCurrentUser,
+} from "../types/userStorage";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -12,6 +18,54 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Login() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // Se o usuário veio da tela de cadastro com sucesso
+  useEffect(() => {
+    if (location.state && (location.state as { registered?: boolean }).registered) {
+      setSuccessMessage("Conta criada com sucesso! Faça login para continuar.");
+    }
+  }, [location.state]);
+
+  // Se o usuário já estiver logado, redireciona para a Home
+  useEffect(() => {
+    const activeUser = getCurrentUser();
+    if (activeUser) {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      setErrorMessage("Por favor, preencha o e-mail e a senha.");
+      return;
+    }
+
+    const user = findUserByCredentials(trimmedEmail, password);
+
+    if (!user) {
+      setErrorMessage("E-mail ou senha incorretos.");
+      return;
+    }
+
+    // Salva a sessão ativa
+    setCurrentUser(user);
+
+    // Redireciona para a Home
+    navigate("/", { replace: true });
+  }
+
   return (
     <main className="min-h-screen bg-[#061426] text-white">
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8">
@@ -55,8 +109,28 @@ export default function Login() {
             </p>
           </div>
 
+          {/* Mensagem de sucesso ao cadastrar */}
+          {successMessage && (
+            <div
+              role="status"
+              className="mb-4 rounded-md border border-emerald-500/40 bg-emerald-950/60 p-3 text-center text-xs text-emerald-300"
+            >
+              {successMessage}
+            </div>
+          )}
+
+          {/* Mensagem de erro */}
+          {errorMessage && (
+            <div
+              role="alert"
+              className="mb-4 rounded-md border border-red-500/40 bg-red-950/60 p-3 text-center text-xs text-red-300"
+            >
+              {errorMessage}
+            </div>
+          )}
+
           {/* Formulário */}
-          <form className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
 
             {/* E-mail */}
             <div>
@@ -71,6 +145,11 @@ export default function Login() {
                 id="email"
                 type="email"
                 placeholder="Digite seu e-mail"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setErrorMessage("");
+                }}
                 className="w-full rounded-md border border-[#193653] bg-[#0d2138] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
@@ -88,6 +167,11 @@ export default function Login() {
                 id="password"
                 type="password"
                 placeholder="Digite sua senha"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setErrorMessage("");
+                }}
                 className="w-full rounded-md border border-[#193653] bg-[#0d2138] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
@@ -128,4 +212,4 @@ export default function Login() {
       </div>
     </main>
   );
-}
+}

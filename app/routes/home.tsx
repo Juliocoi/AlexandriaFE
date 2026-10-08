@@ -1,11 +1,13 @@
-import { Link, NavLink } from "react-router";
-import { useState } from "react";
+import { Link, NavLink, useNavigate } from "react-router";
+import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import {
   BookOpen, Home as HomeIcon, Library, Bookmark, User, LogOut,
   Search, Bell, ArrowRight, Star,
 } from "lucide-react";
 import type { Route } from "./+types/home";
+import { getCurrentUser, clearCurrentUser } from "../types/userStorage";
+import type { User as UserType } from "../types/user";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -22,9 +24,6 @@ const MENU = [
   { to: "/meus-livros", label: "Meus Livros", icon: Bookmark },
   { to: "/perfil", label: "Perfil", icon: User },
 ];
-
-// Trocar pelo usuário logado
-const USUARIO = { nome: "William", foto: "/avatar.jpg" };
 
 
 function normalizarTexto(texto: string) {
@@ -76,7 +75,7 @@ function ResultadoBusca({ livro }: { livro: Livro }) {
   );
 }
 
-function Sidebar() {
+function Sidebar({ onLogout }: { onLogout: () => void }) {
   return (
     <aside className="hidden w-56 shrink-0 flex-col border-r border-[#1A2B45] bg-[#0B1729] p-3 md:flex">
       <div className="mb-6 flex items-center gap-2 px-2 py-2">
@@ -104,7 +103,11 @@ function Sidebar() {
         ))}
       </nav>
 
-      <button className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[#A9B6C9] hover:bg-[#13243D] hover:text-white">
+      <button
+        type="button"
+        onClick={onLogout}
+        className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[#A9B6C9] transition-colors hover:bg-[#13243D] hover:text-red-400"
+      >
         <LogOut className="h-4 w-4" />
         Sair
       </button>
@@ -112,16 +115,19 @@ function Sidebar() {
   );
 }
 
+
 function Topbar({
   busca,
   setBusca,
   onBuscar,
   sugestoes,
+  usuario,
 }: {
   busca: string;
   setBusca: (valor: string) => void;
   onBuscar: (event: FormEvent<HTMLFormElement>) => void;
   sugestoes: Livro[];
+  usuario: UserType | null;
 }) {
   return (
     <header className="flex items-center justify-between gap-4 border-b border-[#1A2B45] px-6 py-3">
@@ -192,7 +198,12 @@ function Topbar({
         <button aria-label="Notificações" className="flex h-9 w-9 items-center justify-center rounded-full border border-[#1F3352] text-[#A9B6C9] hover:text-white">
           <Bell className="h-4 w-4" />
         </button>
-        <img src={USUARIO.foto} alt={USUARIO.nome} className="h-9 w-9 rounded-full bg-[#1A2B45] object-cover" />
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1D7BF5] text-xs font-semibold text-white uppercase shadow"
+          title={usuario?.name || "Usuário"}
+        >
+          {usuario?.name ? usuario.name.charAt(0) : "U"}
+        </div>
       </div>
     </header>
   );
@@ -238,11 +249,30 @@ function CardLivro({ livro }: { livro: Livro }) {
 }
 
 export default function Home() {
+  const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+
   const [busca, setBusca] = useState("");
   const [resultados, setResultados] = useState<Livro[]>([]);
   const [pesquisaEnviada, setPesquisaEnviada] = useState(false);
   const [pesquisando, setPesquisando] = useState(false);
   const [erroBusca, setErroBusca] = useState("");
+
+  useEffect(() => {
+    const user = getCurrentUser();
+    if (!user) {
+      navigate("/login", { replace: true });
+    } else {
+      setCurrentUser(user);
+      setLoadingAuth(false);
+    }
+  }, [navigate]);
+
+  function handleLogout() {
+    clearCurrentUser();
+    navigate("/login", { replace: true });
+  }
 
   function handleBuscaChange(valor: string) {
     setBusca(valor);
@@ -275,9 +305,17 @@ export default function Home() {
 
   const sugestoes = busca.trim() ? buscarLivros(busca) : [];
 
+  if (loadingAuth || !currentUser) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#08121F] text-white">
+        <p className="text-sm text-[#8A9AB1]">Carregando...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-[#08121F] text-white">
-      <Sidebar />
+      <Sidebar onLogout={handleLogout} />
 
       <div className="flex flex-1 flex-col">
         <Topbar
@@ -285,13 +323,15 @@ export default function Home() {
           setBusca={handleBuscaChange}
           onBuscar={handleBuscar}
           sugestoes={sugestoes}
+          usuario={currentUser}
         />
 
         <main className="flex flex-col gap-8 p-6">
           <div>
-            <h1 className="text-2xl font-semibold">Olá, {USUARIO.nome}!</h1>
+            <h1 className="text-2xl font-semibold">Olá, {currentUser.name}!</h1>
             <p className="text-sm text-[#8A9AB1]">Qual história você vai ler hoje?</p>
           </div>
+
 
           {pesquisaEnviada ? (
             <section>
