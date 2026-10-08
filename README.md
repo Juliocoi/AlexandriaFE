@@ -91,8 +91,8 @@ O projeto utiliza um ecossistema moderno voltado à performance, tipagem estáti
 Projeto desenvolvido pelo time:
 
 - **Erick Lourenço Gouveia - 01823433**
-- **Guilherme Pereira Amaral - 01546872 **
-- **Júlio César Amorim de Souza - 01024947 **
+- **Guilherme Pereira Amaral - 01546872**
+- **Júlio César Amorim de Souza - 01024947**
 - **Maria Carolina Barata de Leon - 01645776**
 - **Thiago Pinheiro da Cruz Gouveia 01530836**
 - **Victor Augusto Pereira Lira - 01825974**
