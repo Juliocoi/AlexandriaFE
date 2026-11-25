@@ -1,18 +1,13 @@
-import {
-  type RouteConfig,
-  index,
-  route,
-} from "@react-router/dev/routes";
-
-
+import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
   index("routes/home.tsx"),
   route("login", "routes/login.tsx"),
-  route("book-card-test", "routes/book-card-test.tsx"),
-  route("livro/:id", "routes/livro.$id.tsx"),
   route("cadastro", "routes/cadastro.tsx"),
+  route("catalogo", "routes/catalogo.tsx"),
+  route("livro/:id", "routes/livro.tsx"),
+  route("meus-livros", "routes/meus-livros.tsx"),
+  route("perfil", "routes/perfil.tsx"),
+  route("gerenciar-livros", "routes/gerenciar-livros.tsx"),
+  route("api/upload-cover", "routes/api.upload-cover.ts"),
 ] satisfies RouteConfig;
-  
-
-
