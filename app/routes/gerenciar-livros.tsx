@@ -1,7 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Link } from "react-router";
-import { BookPlus, Loader2, Plus, ShieldAlert } from "lucide-react";
+import {
+  BookPlus,
+  ImagePlus,
+  Loader2,
+  Plus,
+  ShieldAlert,
+  X,
+} from "lucide-react";
 import type { Route } from "./+types/gerenciar-livros";
 import { BookCover } from "../components/BookCover";
 import { SessionGuard } from "../components/SessionGuard";
@@ -27,6 +34,9 @@ function GerenciarLivrosContent({ user }: { user: User }) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -67,6 +77,12 @@ function GerenciarLivrosContent({ user }: { user: User }) {
     }
   }, [user.role]);
 
+  useEffect(() => {
+    return () => {
+      if (coverPreview) URL.revokeObjectURL(coverPreview);
+    };
+  }, [coverPreview]);
+
   if (user.role !== "STAFF") {
     return (
       <div className="mx-auto max-w-md rounded-xl border border-[#EF4444]/40 bg-[#0F1E33] p-8 text-center">
@@ -95,6 +111,28 @@ function GerenciarLivrosContent({ user }: { user: User }) {
     setFieldErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
+  const handleCoverFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+
+    if (!file) {
+      setCoverFile(null);
+      setCoverPreview(null);
+      return;
+    }
+
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+    setFieldErrors((prev) => ({ ...prev, coverUrl: "" }));
+  };
+
+  const clearCoverFile = () => {
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverFile(null);
+    setCoverPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleCreateBook = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
@@ -103,12 +141,45 @@ function GerenciarLivrosContent({ user }: { user: User }) {
     setFieldErrors({});
 
     try {
+      let resolvedCoverUrl = form.coverUrl.trim();
+
+      if (coverFile) {
+        const uploadData = new FormData();
+        uploadData.append("file", coverFile);
+        if (form.title.trim()) {
+          uploadData.append("title", form.title.trim());
+        }
+
+        const uploadResponse = await fetch("/api/upload-cover", {
+          method: "POST",
+          body: uploadData,
+        });
+        const uploadJson = (await uploadResponse.json()) as {
+          coverUrl?: string;
+          message?: string;
+        };
+
+        if (!uploadResponse.ok || !uploadJson.coverUrl) {
+          throw new Error(
+            uploadJson.message ?? "Não foi possível salvar a imagem da capa."
+          );
+        }
+
+        resolvedCoverUrl = uploadJson.coverUrl;
+      } else if (!resolvedCoverUrl || resolvedCoverUrl === "/images/books/") {
+        setFieldErrors({
+          coverUrl: "Envie uma foto da capa ou informe o caminho da imagem.",
+        });
+        setSubmitting(false);
+        return;
+      }
+
       const created = await booksApi.create({
         title: form.title.trim(),
         author: form.author.trim(),
         coAuthor: form.coAuthor.trim() || null,
         isbn: form.isbn.trim(),
-        coverUrl: form.coverUrl.trim(),
+        coverUrl: resolvedCoverUrl,
         category: form.category.trim(),
         bookshelf: form.bookshelf.trim(),
         totalCopies: Number.parseInt(form.totalCopies, 10) || 1,
@@ -122,6 +193,7 @@ function GerenciarLivrosContent({ user }: { user: User }) {
 
       setBooks((prev) => [created, ...prev]);
       setFeedback(`Livro "${created.title}" cadastrado com sucesso!`);
+      clearCoverFile();
       setForm({
         title: "",
         author: "",
@@ -142,6 +214,8 @@ function GerenciarLivrosContent({ user }: { user: User }) {
       if (err instanceof ApiError) {
         setError(err.message);
         if (err.fieldErrors) setFieldErrors(err.fieldErrors);
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
         setError("Não foi possível cadastrar o livro.");
       }
@@ -282,18 +356,59 @@ function GerenciarLivrosContent({ user }: { user: User }) {
               )}
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs text-[#A9B6C9]">
-                Caminho da Capa (`coverUrl`) *
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label className="mb-1.5 block text-xs text-[#A9B6C9]">
+                Foto da Capa * (salva em public/images/books)
               </label>
-              <input
-                name="coverUrl"
-                required
-                value={form.coverUrl}
-                onChange={handleChange}
-                placeholder="/images/books/sapiens.jpg"
-                className={inputClass}
-              />
+
+              <div className="flex flex-col gap-4 rounded-lg border border-[#1F3352] bg-[#0B1729] p-4 sm:flex-row sm:items-center">
+                {coverPreview ? (
+                  <div className="relative h-28 w-20 shrink-0">
+                    <img
+                      src={coverPreview}
+                      alt="Pré-visualização da capa"
+                      className="h-full w-full rounded-md border border-[#1A2B45] object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={clearCoverFile}
+                      aria-label="Remover imagem selecionada"
+                      className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#EF4444] text-white shadow hover:bg-[#DC2626]"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex h-28 w-20 shrink-0 items-center justify-center rounded-md border border-dashed border-[#1F3352] bg-[#08121F] text-[#6F819B]">
+                    <ImagePlus className="h-6 w-6" />
+                  </div>
+                )}
+
+                <div className="flex flex-1 flex-col gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={handleCoverFileChange}
+                    className="block w-full text-xs text-[#A9B6C9] file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-[#1D7BF5] file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-[#1668D6]"
+                  />
+                  <p className="text-[11px] text-[#6F819B]">
+                    {coverFile
+                      ? `Arquivo selecionado: ${coverFile.name}`
+                      : "Formatos aceitos: JPG, PNG, WEBP ou GIF (máx. 5 MB). Ou informe um caminho já existente abaixo:"}
+                  </p>
+                  {!coverFile && (
+                    <input
+                      name="coverUrl"
+                      value={form.coverUrl}
+                      onChange={handleChange}
+                      placeholder="/images/books/sapiens.jpg"
+                      className={inputClass}
+                    />
+                  )}
+                </div>
+              </div>
+
               {fieldErrors.coverUrl && (
                 <p className="mt-1 text-xs text-[#FCA5A5]">
                   {fieldErrors.coverUrl}

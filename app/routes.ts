@@ -9,4 +9,5 @@ export default [
   route("meus-livros", "routes/meus-livros.tsx"),
   route("perfil", "routes/perfil.tsx"),
   route("gerenciar-livros", "routes/gerenciar-livros.tsx"),
+  route("api/upload-cover", "routes/api.upload-cover.ts"),
 ] satisfies RouteConfig;
