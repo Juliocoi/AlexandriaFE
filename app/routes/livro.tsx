@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   BookOpen,
   Calendar,
+  Edit3,
   Globe,
   Heart,
   Layers,
@@ -319,12 +320,24 @@ function LivroContent({ user, bookId }: { user: User; bookId: string }) {
 
           {user.role === "STAFF" && (
             <section className="rounded-xl border border-[#1A2B45] bg-[#0F1E33] p-6">
-              <h2 className="text-base font-semibold text-white">
-                Gestão de Estoque (Funcionário)
-              </h2>
-              <p className="mt-1 text-xs text-[#8A9AB1]">
-                Adicione novos exemplares físicos recebidos no acervo.
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-white">
+                    Gestão de Estoque (Funcionário)
+                  </h2>
+                  <p className="mt-1 text-xs text-[#8A9AB1]">
+                    Adicione novos exemplares físicos ou edite as informações do livro.
+                  </p>
+                </div>
+
+                <Link
+                  to={`/gerenciar-livros?edit=${encodeURIComponent(book.id)}`}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[#1F3352] bg-[#0B1729] px-3.5 py-2 text-xs font-medium text-white transition-colors hover:border-[#1D7BF5]"
+                >
+                  <Edit3 className="h-3.5 w-3.5" />
+                  Editar dados do livro
+                </Link>
+              </div>
 
               <form
                 onSubmit={handleAddCopies}

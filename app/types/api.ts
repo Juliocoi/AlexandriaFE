@@ -6,7 +6,7 @@ export interface User {
   email: string;
   birthDate: string;
   motherName: string;
-  fatherName: string;
+  fatherName?: string | null;
   role: UserRole;
 }
 
@@ -26,7 +26,7 @@ export interface RegisterRequest {
   password: string;
   birthDate: string;
   motherName: string;
-  fatherName: string;
+  fatherName?: string | null;
 }
 
 export interface UpdateUserRequest {
@@ -35,7 +35,7 @@ export interface UpdateUserRequest {
   password?: string;
   birthDate: string;
   motherName: string;
-  fatherName: string;
+  fatherName?: string | null;
 }
 
 export interface Book {
@@ -74,6 +74,8 @@ export interface CreateBookRequest {
   pages: number;
   language: string;
 }
+
+export type UpdateBookRequest = CreateBookRequest;
 
 export interface UpdateCopiesRequest {
   quantity: number;

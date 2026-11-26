@@ -53,9 +53,6 @@ function validate(values: FormValues): FormErrors {
   if (!values.motherName.trim()) {
     errors.motherName = "O nome da mãe é obrigatório.";
   }
-  if (!values.fatherName.trim()) {
-    errors.fatherName = "O nome do pai é obrigatório.";
-  }
   if (!values.password) errors.password = "A senha é obrigatória.";
   else if (values.password.length < 6) {
     errors.password = "Use ao menos 6 caracteres.";
@@ -114,7 +111,7 @@ export default function SignUpView() {
         password: values.password,
         birthDate: toApiDate(values.birthDate),
         motherName: values.motherName.trim(),
-        fatherName: values.fatherName.trim(),
+        fatherName: values.fatherName.trim() || null,
       });
       navigate("/login", { state: { registered: true } });
     } catch (err) {
@@ -278,7 +275,7 @@ export default function SignUpView() {
                   htmlFor="fatherName"
                   className="mb-1.5 block text-xs font-medium text-slate-300"
                 >
-                  Nome do pai
+                  Nome do pai (opcional)
                 </label>
                 <div className="relative">
                   <Users className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -286,7 +283,7 @@ export default function SignUpView() {
                     id="fatherName"
                     name="fatherName"
                     type="text"
-                    placeholder="Nome do pai"
+                    placeholder="Opcional"
                     value={values.fatherName}
                     onChange={handleChange}
                     className={inputBase}
