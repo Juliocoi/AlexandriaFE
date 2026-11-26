@@ -9,6 +9,7 @@ import type {
   LoginResponse,
   RegisterRequest,
   ReturnLoanRequest,
+  UpdateBookRequest,
   UpdateCopiesRequest,
   UpdateUserRequest,
   User,
@@ -153,6 +154,13 @@ export const booksApi = {
   create(payload: CreateBookRequest): Promise<Book> {
     return request<Book>("/api/books", {
       method: "POST",
+      body: payload,
+    });
+  },
+
+  update(id: string, payload: UpdateBookRequest): Promise<Book> {
+    return request<Book>(`/api/books/${encodeURIComponent(id)}`, {
+      method: "PUT",
       body: payload,
     });
   },
