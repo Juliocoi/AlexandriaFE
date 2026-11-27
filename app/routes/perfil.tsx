@@ -35,7 +35,7 @@ function PerfilContent({ user: sessionUser }: { user: User }) {
     email: sessionUser.email,
     birthDate: toInputDate(sessionUser.birthDate),
     motherName: sessionUser.motherName,
-    fatherName: sessionUser.fatherName,
+    fatherName: sessionUser.fatherName ?? "",
     password: "",
   });
 
@@ -58,7 +58,7 @@ function PerfilContent({ user: sessionUser }: { user: User }) {
           email: freshUser.email,
           birthDate: toInputDate(freshUser.birthDate),
           motherName: freshUser.motherName,
-          fatherName: freshUser.fatherName,
+          fatherName: freshUser.fatherName ?? "",
           password: "",
         });
         setLoans(userLoans);
@@ -99,7 +99,7 @@ function PerfilContent({ user: sessionUser }: { user: User }) {
         email: form.email.trim(),
         birthDate: toApiDate(form.birthDate),
         motherName: form.motherName.trim(),
-        fatherName: form.fatherName.trim(),
+        fatherName: form.fatherName.trim() || null,
         ...(form.password.trim() ? { password: form.password } : {}),
       });
       setProfile(updated);
@@ -273,14 +273,14 @@ function PerfilContent({ user: sessionUser }: { user: User }) {
 
               <div>
                 <label className="mb-1.5 block text-xs text-[#A9B6C9]">
-                  Nome do pai
+                  Nome do pai (opcional)
                 </label>
                 <input
                   name="fatherName"
                   type="text"
+                  placeholder="Opcional"
                   value={form.fatherName}
                   onChange={handleChange}
-                  required
                   className="w-full rounded-lg border border-[#1F3352] bg-[#0B1729] px-3 py-2.5 text-sm text-white outline-none focus:border-[#1D7BF5]"
                 />
                 {fieldErrors.fatherName && (
@@ -337,7 +337,7 @@ function PerfilContent({ user: sessionUser }: { user: User }) {
                 </div>
                 <div>
                   <span className="block text-[#6F819B]">Nome do pai</span>
-                  <span className="text-white">{profile.fatherName}</span>
+                  <span className="text-white">{profile.fatherName || "—"}</span>
                 </div>
               </div>
             </div>

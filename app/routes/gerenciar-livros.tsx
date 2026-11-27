@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import {
   BookPlus,
+  Edit3,
   ImagePlus,
   Loader2,
   Plus,
+  Save,
   ShieldAlert,
   X,
 } from "lucide-react";
@@ -13,7 +15,7 @@ import type { Route } from "./+types/gerenciar-livros";
 import { BookCover } from "../components/BookCover";
 import { SessionGuard } from "../components/SessionGuard";
 import { ApiError, booksApi } from "../lib/api";
-import { toApiDate } from "../lib/date";
+import { toApiDate, toInputDate } from "../lib/date";
 import type { Book, User } from "../types/api";
 
 export function meta({}: Route.MetaArgs) {
@@ -26,7 +28,25 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+const INITIAL_FORM = {
+  title: "",
+  author: "",
+  coAuthor: "",
+  isbn: "",
+  coverUrl: "/images/books/",
+  category: "",
+  bookshelf: "",
+  totalCopies: "1",
+  pages: "",
+  language: "Português",
+  releaseDate: "",
+  edition: "1",
+  publisher: "",
+  synopsis: "",
+};
+
 function GerenciarLivrosContent({ user }: { user: User }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -34,26 +54,13 @@ function GerenciarLivrosContent({ user }: { user: User }) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const [editingBookId, setEditingBookId] = useState<string | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const formSectionRef = useRef<HTMLElement | null>(null);
 
-  const [form, setForm] = useState({
-    title: "",
-    author: "",
-    coAuthor: "",
-    isbn: "",
-    coverUrl: "/images/books/",
-    category: "",
-    bookshelf: "",
-    totalCopies: "1",
-    pages: "",
-    language: "Português",
-    releaseDate: "",
-    edition: "1",
-    publisher: "",
-    synopsis: "",
-  });
+  const [form, setForm] = useState(INITIAL_FORM);
 
   const loadBooks = async () => {
     setLoading(true);
@@ -133,7 +140,54 @@ function GerenciarLivrosContent({ user }: { user: User }) {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleCreateBook = async (event: FormEvent<HTMLFormElement>) => {
+  const startEditing = (book: Book) => {
+    clearCoverFile();
+    setEditingBookId(book.id);
+    setError(null);
+    setFeedback(null);
+    setFieldErrors({});
+    setForm({
+      title: book.title ?? "",
+      author: book.author ?? "",
+      coAuthor: book.coAuthor ?? "",
+      isbn: book.isbn ?? "",
+      coverUrl: book.coverUrl ?? "/images/books/",
+      category: book.category ?? "",
+      bookshelf: book.bookshelf ?? "",
+      totalCopies: String(book.totalCopies ?? 1),
+      pages: String(book.pages ?? ""),
+      language: book.language ?? "Português",
+      releaseDate: book.releaseDate ? toInputDate(book.releaseDate) : "",
+      edition: book.edition ? String(book.edition) : "1",
+      publisher: book.publisher ?? "",
+      synopsis: book.synopsis ?? "",
+    });
+    formSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const cancelEditing = () => {
+    setEditingBookId(null);
+    clearCoverFile();
+    setFieldErrors({});
+    setForm(INITIAL_FORM);
+    if (searchParams.has("edit")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("edit");
+      setSearchParams(next, { replace: true });
+    }
+  };
+
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId || books.length === 0 || editingBookId === editId) return;
+    const target = books.find((b) => b.id === editId);
+    if (target) {
+      startEditing(target);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [books, searchParams]);
+
+  const handleSubmitBook = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
@@ -174,7 +228,7 @@ function GerenciarLivrosContent({ user }: { user: User }) {
         return;
       }
 
-      const created = await booksApi.create({
+      const payload = {
         title: form.title.trim(),
         author: form.author.trim(),
         coAuthor: form.coAuthor.trim() || null,
@@ -189,27 +243,22 @@ function GerenciarLivrosContent({ user }: { user: User }) {
         edition: form.edition ? Number.parseInt(form.edition, 10) : undefined,
         publisher: form.publisher.trim() || undefined,
         synopsis: form.synopsis.trim() || undefined,
-      });
+      };
 
-      setBooks((prev) => [created, ...prev]);
-      setFeedback(`Livro "${created.title}" cadastrado com sucesso!`);
-      clearCoverFile();
-      setForm({
-        title: "",
-        author: "",
-        coAuthor: "",
-        isbn: "",
-        coverUrl: "/images/books/",
-        category: "",
-        bookshelf: "",
-        totalCopies: "1",
-        pages: "",
-        language: "Português",
-        releaseDate: "",
-        edition: "1",
-        publisher: "",
-        synopsis: "",
-      });
+      if (editingBookId) {
+        const updated = await booksApi.update(editingBookId, payload);
+        setBooks((prev) =>
+          prev.map((b) => (b.id === editingBookId ? updated : b))
+        );
+        setFeedback(`Livro "${updated.title}" atualizado com sucesso!`);
+        cancelEditing();
+      } else {
+        const created = await booksApi.create(payload);
+        setBooks((prev) => [created, ...prev]);
+        setFeedback(`Livro "${created.title}" cadastrado com sucesso!`);
+        clearCoverFile();
+        setForm(INITIAL_FORM);
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -217,7 +266,11 @@ function GerenciarLivrosContent({ user }: { user: User }) {
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Não foi possível cadastrar o livro.");
+        setError(
+          editingBookId
+            ? "Não foi possível atualizar o livro."
+            : "Não foi possível cadastrar o livro."
+        );
       }
     } finally {
       setSubmitting(false);
@@ -278,13 +331,35 @@ function GerenciarLivrosContent({ user }: { user: User }) {
         </div>
       )}
 
-      <section className="rounded-xl border border-[#1A2B45] bg-[#0F1E33] p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <BookPlus className="h-5 w-5 text-[#1D7BF5]" />
-          <h2 className="text-lg font-semibold">Cadastrar Novo Livro</h2>
+      <section
+        ref={formSectionRef}
+        className="rounded-xl border border-[#1A2B45] bg-[#0F1E33] p-6"
+      >
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            {editingBookId ? (
+              <Edit3 className="h-5 w-5 text-[#1D7BF5]" />
+            ) : (
+              <BookPlus className="h-5 w-5 text-[#1D7BF5]" />
+            )}
+            <h2 className="text-lg font-semibold">
+              {editingBookId ? "Editar Livro" : "Cadastrar Novo Livro"}
+            </h2>
+          </div>
+
+          {editingBookId && (
+            <button
+              type="button"
+              onClick={cancelEditing}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#1F3352] px-3 py-1.5 text-xs font-medium text-[#A9B6C9] transition-colors hover:border-[#1D7BF5] hover:text-white"
+            >
+              <X className="h-3.5 w-3.5" />
+              Cancelar edição
+            </button>
+          )}
         </div>
 
-        <form onSubmit={handleCreateBook} className="space-y-4">
+        <form onSubmit={handleSubmitBook} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <label className="mb-1 block text-xs text-[#A9B6C9]">
@@ -537,14 +612,36 @@ function GerenciarLivrosContent({ user }: { user: User }) {
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#1D7BF5] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#1668D6] disabled:opacity-50"
-          >
-            <BookPlus className="h-4 w-4" />
-            {submitting ? "Cadastrando..." : "Cadastrar Livro"}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex items-center gap-2 rounded-lg bg-[#1D7BF5] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#1668D6] disabled:opacity-50"
+            >
+              {editingBookId ? (
+                <Save className="h-4 w-4" />
+              ) : (
+                <BookPlus className="h-4 w-4" />
+              )}
+              {submitting
+                ? editingBookId
+                  ? "Salvando..."
+                  : "Cadastrando..."
+                : editingBookId
+                  ? "Salvar Alterações"
+                  : "Cadastrar Livro"}
+            </button>
+
+            {editingBookId && (
+              <button
+                type="button"
+                onClick={cancelEditing}
+                className="rounded-lg border border-[#1F3352] px-4 py-2.5 text-sm text-[#A9B6C9] transition-colors hover:text-white"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
         </form>
       </section>
 
@@ -590,7 +687,15 @@ function GerenciarLivrosContent({ user }: { user: User }) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 self-end sm:self-center">
+                <div className="flex flex-wrap items-center gap-2 self-end sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => startEditing(book)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-[#1F3352] bg-[#0B1729] px-3 py-1.5 text-xs font-medium text-[#A9B6C9] transition-colors hover:border-[#1D7BF5] hover:text-white"
+                  >
+                    <Edit3 className="h-3.5 w-3.5" />
+                    Editar
+                  </button>
                   <input
                     type="number"
                     min={1}
